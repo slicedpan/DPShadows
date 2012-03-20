@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <math.h>
 #include "glm\glm.h"
+#include "QuadDrawer.h"
 
 bool running = true;
 bool limitFPS = true;
@@ -32,7 +33,7 @@ int rootParticleNum = 16;
 FPSCamera* camera;
 CameraController* controller;
 
-Shader* particleRenderer;
+Shader* shadowGen;
 Shader* copyTex;
 Shader* basic;
 ShaderManager* shaderManager;
@@ -42,6 +43,12 @@ Mat4 Projection;
 int glMajorVersion;
 int glMinorVersion;
 int glRev;
+
+bool debugDraw = false;
+
+Mat4 lightWorldView;
+float lightYaw = 0.0f;
+float lightPitch = 0.0f;
 
 GLuint texID;
 
@@ -83,6 +90,8 @@ void setup()
 		return;	
 	}	
 	basic = new Shader("Assets/Shaders/basic.vert", "Assets/Shaders/basic.frag", "Basic");
+	copyTex = new Shader("Assets/Shaders/copy.vert", "Assets/Shaders/copy.frag", "Copy");
+	shadowGen = new Shader("Assets/Shaders/shadowGen.vert", "Assets/Shaders/shadowGen.frag", "Shadowmap Generator");
 	ShaderManager::GetSingletonPtr()->CompileShaders();
 	mesh = new VBOMesh("Assets/Meshes/sponza.obj", false, true);	
 	mesh->Load();
@@ -97,6 +106,8 @@ int frameCount;
 double timeCount;
 int currentFps;
 int dX, dY;
+
+Vec3 lightPos(0.0, 30.0, 0.0);
 
 void update()
 {
@@ -130,8 +141,14 @@ void update()
 	controller->ChangeYaw(-elapsedTime * dX);
 	dY = 0;
 	dX = 0;
+
+	lightWorldView.MakeHRot(Vec3(1.0f, 0.0f, 0.0f), lightPitch);
+	lightWorldView *= HRot4(Vec3(0.0f, 1.0f, 0.0f), lightYaw);
+	lightWorldView *= HTrans4(lightPos);
 	
 }
+
+float lightRadius = 100.0f;
 
 void display()
 {
@@ -140,14 +157,26 @@ void display()
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
+
+	shadowMap->Bind();
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	shadowGen->Use();
+	shadowGen->Uniforms("lightWorldView").SetValue(camera->GetViewTransform());
+	shadowGen->Uniforms("lightRadius").SetValue(lightRadius);
+	mesh->Draw();
+
+	shadowMap->Unbind();
 	
 	basic->Use();
 	basic->Uniforms("View").SetValue(camera->GetViewTransform());
 	basic->Uniforms("Projection").SetValue(camera->GetProjectionMatrix());
-	Vec3 lightPos(0, 5, 0);
+	
 	Mat4 world = Mat4(vl_one);
 	basic->Uniforms("World").SetValue(world);
 	basic->Uniforms("lightPos").SetValue(lightPos);
+	basic->Uniforms("lightRadius").SetValue(lightRadius);
 
 	/*
 	glBegin(GL_TRIANGLES);
@@ -159,12 +188,10 @@ void display()
 	glVertex3f(1.0, 1.0, 0.0);
 	glEnd();*/
 
-	//mesh->Draw();
 
-	world = HTrans4(Vec3(1.0, 0.0, 0.0));
-	basic->Uniforms("World").SetValue(world);
+	world = HTrans4(Vec3(0.0, 0.0, 0.0));
+	basic->Uniforms("World").SetValue(world);	
 	
-
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	glMultMatrixf(camera->GetProjectionMatrix().Ref());
@@ -172,7 +199,10 @@ void display()
 	glLoadIdentity();
 	glMultMatrixf(camera->GetViewTransform().Ref());
 
-	mesh->DrawImmediate();
+	if (debugDraw)
+		mesh->DrawImmediate();
+	else
+		mesh->Draw();
 
 	glUseProgram(0);
 
@@ -188,12 +218,15 @@ void display()
 	glVertex3f(0.0, 0.0, 1.0);
 	glEnd();
 
-	/*glBegin(GL_QUADS);
-	glVertex2f(0.0, 0.0);
-	glVertex2f(0.0, 1.0);
-	glVertex2f(1.0, 1.0);
-	glVertex2f(1.0, 0.0);
-	glEnd();*/
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, shadowMap->GetTexture("first"));
+
+	copyTex->Uniforms("baseTex").SetValue(0);
+	copyTex->Use();
+
+	glDisable(GL_DEPTH_TEST);
+
+	QuadDrawer::DrawQuad(Vec2(0.0, 0.0), Vec2(1.0, 1.0));
 
 	if (limitFPS) 
 		glfwSleep(0.016 - glfwGetTime() + frameBegin);
@@ -217,6 +250,8 @@ void KeyboardHandler(int keyCode, int state)
 	keyState[keyCode] = state;
 	if (keyCode == 'R' && state == GLFW_PRESS)
 		ShaderManager::GetSingletonPtr()->ReloadShaders();
+	if(keyCode == 'P' && state == GLFW_PRESS)
+		debugDraw = !debugDraw;
 	if (keyCode == GLFW_KEY_LSHIFT || keyCode == GLFW_KEY_RSHIFT)
 	{
 		if (state == GLFW_PRESS)
@@ -264,7 +299,7 @@ int main(int argc, char**argv)
 	lastTime = glfwGetTime();
 
 	glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
-	glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 3);
+	glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 0);
 
 	if (!glfwOpenWindow(800, 600, 8, 8, 8, 8, 24, 8, GLFW_WINDOW))
 		return 1;	
