@@ -9,8 +9,8 @@ uniform mat4 World;
 
 uniform vec3 lightPos;
 
-out vec3 oNormal;
-out vec3 worldPos;
+smooth out vec3 oNormal;
+smooth out vec3 worldPos;
 
 void main()
 {	

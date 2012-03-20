@@ -51,13 +51,13 @@ float RandomFloat()
 	return (float)rand() / RAND_MAX;
 }
 
-FrameBufferObject* FBO;
+FrameBufferObject* shadowMap;
 
 void CreateFBOs()
 {
-	FBO = new FrameBufferObject(1024, 1024, 0, 0, GL_RGBA16F, GL_TEXTURE_2D);
-	FBO->AttachTexture("first");
-	if (!FBO->CheckCompleteness())
+	shadowMap = new FrameBufferObject(width, height, 16, 0, GL_RG16F, GL_TEXTURE_2D);
+	shadowMap->AttachTexture("first");
+	if (!shadowMap->CheckCompleteness())
 		throw;
 }
 
@@ -72,7 +72,7 @@ void setup()
 	camera->Position[0] = 0.5f;
 	controller = new CameraController();
 	controller->SetCamera(camera);
-	controller->MaxSpeed = 0.01;
+	controller->MaxSpeed = 0.03;
 	controller->PitchAngularVelocity *= 10.0f;
 	controller->YawAngularVelocity *= 10.0f;
 	GLenum err = glewInit();
@@ -84,10 +84,8 @@ void setup()
 	basic = new Shader("Assets/Shaders/basic.vert", "Assets/Shaders/basic.frag", "Basic");
 	ShaderManager::GetSingletonPtr()->CompileShaders();
 	mesh = new VBOMesh("box.obj", false, true);
+	mesh->Load();
 	CreateFBOs();
-	CreateVBOs();
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, texID);
 	memset(keyState, 0, sizeof(bool) * 256);
 	memset(lastKeyState, 0, sizeof(bool) * 256);	
 }
@@ -157,7 +155,7 @@ void display()
 	glVertex3f(1.0, 1.0, 0.0);
 	glEnd();*/
 
-	//mesh->Draw();
+	mesh->Draw();
 
 	world = HTrans4(Vec3(1.0, 0.0, 0.0));
 	basic->Uniforms("World").SetValue(world);
@@ -199,23 +197,6 @@ void display()
 	glfwSwapBuffers();
 }
 
-unsigned short indices[] = {0, 1, 2, 0, 2, 3};
-
-void CreateVBOs()
-{
-	GLuint id;
-	float vertices[] = {0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0}; 
-	GLsizeiptr vSize = sizeof(float) * 8;
-	glGenBuffers(1, &vertexBuf);
-	glGenBuffers(1, &indexBuf);
-	glBindBuffer(GL_ARRAY_BUFFER, vertexBuf);
-	glBufferData(GL_ARRAY_BUFFER, vSize, (void*)vertices, GL_STATIC_DRAW);	
-
-	vSize = sizeof(unsigned short) * 6;
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuf);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, vSize, indices, GL_STATIC_DRAW);
-}
-
 int Exit()
 {
 	running = false;
@@ -231,6 +212,13 @@ void KeyboardHandler(int keyCode, int state)
 	keyState[keyCode] = state;
 	if (keyCode == 'R' && state == GLFW_PRESS)
 		ShaderManager::GetSingletonPtr()->ReloadShaders();
+	if (keyCode == GLFW_KEY_LSHIFT || keyCode == GLFW_KEY_RSHIFT)
+	{
+		if (state == GLFW_PRESS)
+			controller->MaxSpeed = 0.07f;
+		else
+			controller->MaxSpeed = 0.03f;
+	}
 	if (keyCode == 'M' && state == GLFW_PRESS)
 	{
 		if (mouseEnabled)		
@@ -245,7 +233,7 @@ void KeyboardHandler(int keyCode, int state)
 	if (keyCode == 'F' && state == GLFW_PRESS)
 		limitFPS = !limitFPS;
 	if (keyCode == GLFW_KEY_ESC)
-		Exit();
+		Exit();	
 }
 
 void MouseMovementHandler(int x, int y)
@@ -276,8 +264,7 @@ int main(int argc, char**argv)
 	if (!glfwOpenWindow(800, 600, 8, 8, 8, 8, 24, 8, GLFW_WINDOW))
 		return 1;	
 
-	glfwGetGLVersion(&glMajorVersion, &glMinorVersion, &glRev);
-
+	glfwGetGLVersion(&glMajorVersion, &glMinorVersion, &glRev);	
 	setup();	
 
 	glfwSetWindowCloseCallback(Exit);
