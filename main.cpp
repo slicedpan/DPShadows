@@ -9,6 +9,7 @@
 #include "VBOMesh.h"
 #include <cstdlib>
 #include <math.h>
+#include "glm\glm.h"
 
 bool running = true;
 bool limitFPS = true;
@@ -83,8 +84,9 @@ void setup()
 	}	
 	basic = new Shader("Assets/Shaders/basic.vert", "Assets/Shaders/basic.frag", "Basic");
 	ShaderManager::GetSingletonPtr()->CompileShaders();
-	mesh = new VBOMesh("Assets/Meshes/sponza.obj", false, true);
+	mesh = new VBOMesh("Assets/Meshes/sponza.obj", false, true);	
 	mesh->Load();
+	
 	CreateFBOs();
 	memset(keyState, 0, sizeof(bool) * 256);
 	memset(lastKeyState, 0, sizeof(bool) * 256);	
@@ -157,12 +159,11 @@ void display()
 	glVertex3f(1.0, 1.0, 0.0);
 	glEnd();*/
 
-	mesh->Draw();
+	//mesh->Draw();
 
 	world = HTrans4(Vec3(1.0, 0.0, 0.0));
 	basic->Uniforms("World").SetValue(world);
 	
-	//mesh->DrawImmediate();
 
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
@@ -170,6 +171,8 @@ void display()
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 	glMultMatrixf(camera->GetViewTransform().Ref());
+
+	mesh->DrawImmediate();
 
 	glUseProgram(0);
 

@@ -26,6 +26,7 @@
 ipch/
 *.exe
 *.pdb
+*.dll
 [Bb]in
 [Dd]ebug*/
 [Rr]elease*/
