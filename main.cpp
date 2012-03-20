@@ -83,7 +83,7 @@ void setup()
 	}	
 	basic = new Shader("Assets/Shaders/basic.vert", "Assets/Shaders/basic.frag", "Basic");
 	ShaderManager::GetSingletonPtr()->CompileShaders();
-	mesh = new VBOMesh("box.obj", false, true);
+	mesh = new VBOMesh("Assets/Meshes/sponza.obj", false, true);
 	mesh->Load();
 	CreateFBOs();
 	memset(keyState, 0, sizeof(bool) * 256);
@@ -136,6 +136,8 @@ void display()
 	glClearColor(0.0, 0.0, 0.0, 0.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
 	
 	basic->Use();
 	basic->Uniforms("View").SetValue(camera->GetViewTransform());

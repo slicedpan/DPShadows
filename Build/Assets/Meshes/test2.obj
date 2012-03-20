@@ -1,0 +1,49 @@
+# reference a material file
+# Objects in this file will reference materials in the material file
+mtllib ./test.mtl
+
+# vt describes a texture coordinate of x y z (or less, as needed)
+vt 1.337 13.37 133.7
+vt 3.145 31.45 314.5
+vt 2.718 27.18 271.8
+# 3 texture coords
+
+##################
+# box
+##################
+# v defines a vertex point in 3space of x y z
+v  8 0 11.0
+v  16 0 6
+v  3 0 3
+v  11 0 -1
+v  8 20 11
+v  16 20 6
+v  3 20 3
+v  11 0 -1
+# 8 vertices
+
+n 
+
+# Defines a material to use- this material will continue
+# to be used until it is replaced with another.
+usemtl red_material
+
+# f v/vt/vn v/vt/vn v/vt/vn describes a face
+# Faces are composed of vertex/texture/normal indices
+# The order is always v/vt/vn
+# There are a couple examples of combinations of v/vt/vn below
+f 1 3 4
+f 4 2 1
+f 5 6 8
+f 8 7 5
+f 1 2 6
+f 6 5 1
+f 2 4 8
+f 8 6 2
+f 4 3 7
+f 7 8 4
+f 3 1 5
+f 5 7 3
+
+
+
