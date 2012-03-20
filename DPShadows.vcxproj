@@ -37,7 +37,7 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <OutDir>$(SolutionDir)\Build\</OutDir>
+    <OutDir>$(ProjectDir)\Build\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -47,7 +47,7 @@
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>GLUtils.lib;opengl32.lib;GLFW_d.lib;glew32.lib;svl_debug.lib;ObjLoader.lib;FPSCamera.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>GLUtils.lib;opengl32.lib;GLFW_d.lib;glew32.lib;svl_debug.lib;FPSCamera.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)Debug</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>

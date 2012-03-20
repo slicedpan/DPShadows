@@ -162,7 +162,7 @@ void display()
 	world = HTrans4(Vec3(1.0, 0.0, 0.0));
 	basic->Uniforms("World").SetValue(world);
 	
-	mesh->DrawImmediate();
+	//mesh->DrawImmediate();
 
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
