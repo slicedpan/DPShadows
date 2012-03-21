@@ -3,7 +3,7 @@
 uniform vec3 lightPos;
 uniform float lightRadius;
 
-out vec4 out_colour;
+layout(location = 0)out vec4 out_colour;
 smooth in vec3 oNormal;
 smooth in vec3 worldPos;
 

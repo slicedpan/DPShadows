@@ -8,6 +8,6 @@ smooth in float depthSquared;
 
 void main()
 {		
-	out_colour = vec2(depth, pow(depth, 2.0));
+	out_colour = vec2(1.0, pow(depth, 2.0));
 }
 

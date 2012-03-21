@@ -11,6 +11,7 @@
 #include <math.h>
 #include "glm\glm.h"
 #include "QuadDrawer.h"
+#include "BasicTexture.h"
 
 bool running = true;
 bool limitFPS = true;
@@ -38,6 +39,8 @@ Shader* copyTex;
 Shader* basic;
 ShaderManager* shaderManager;
 
+BasicTexture* texture;
+
 Mat4 Projection;
 
 int glMajorVersion;
@@ -63,7 +66,7 @@ FrameBufferObject* shadowMap;
 
 void CreateFBOs()
 {
-	shadowMap = new FrameBufferObject(width, height, 16, 0, GL_RG16F, GL_TEXTURE_2D);
+	shadowMap = new FrameBufferObject(width, height, 24, 0, GL_RG16F, GL_TEXTURE_2D);
 	shadowMap->AttachTexture("first");
 	if (!shadowMap->CheckCompleteness())
 		throw;
@@ -95,7 +98,8 @@ void setup()
 	ShaderManager::GetSingletonPtr()->CompileShaders();
 	mesh = new VBOMesh("Assets/Meshes/sponza.obj", false, true);	
 	mesh->Load();
-	
+	texture = new BasicTexture("Assets/Textures/spiderpic.png");
+	texture->Load();
 	CreateFBOs();
 	memset(keyState, 0, sizeof(bool) * 256);
 	memset(lastKeyState, 0, sizeof(bool) * 256);	
@@ -153,27 +157,38 @@ float lightRadius = 100.0f;
 void display()
 {
 	glClearColor(0.0, 0.0, 0.0, 0.0);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glClearDepth(1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
+	glDisable(GL_TEXTURE_2D);
 
 	shadowMap->Bind();
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
 
-	shadowGen->Use();
-	shadowGen->Uniforms("lightWorldView").SetValue(camera->GetViewTransform());
-	shadowGen->Uniforms("lightRadius").SetValue(lightRadius);
+	basic->Use();
+	basic->Uniforms("View").SetValue(camera->GetViewTransform());
+	basic->Uniforms("Projection").SetValue(camera->GetProjectionMatrix());
+	
+	Mat4 world = Mat4(vl_one);
+	basic->Uniforms("World").SetValue(world);
+	basic->Uniforms("lightPos").SetValue(lightPos);
+	basic->Uniforms("lightRadius").SetValue(lightRadius);
+
 	mesh->Draw();
 
 	shadowMap->Unbind();
 	
 	basic->Use();
 	basic->Uniforms("View").SetValue(camera->GetViewTransform());
-	basic->Uniforms("Projection").SetValue(camera->GetProjectionMatrix());
+	basic->Uniforms("Projection").SetValue(camera->GetProjectionMatrix());	
 	
-	Mat4 world = Mat4(vl_one);
 	basic->Uniforms("World").SetValue(world);
 	basic->Uniforms("lightPos").SetValue(lightPos);
 	basic->Uniforms("lightRadius").SetValue(lightRadius);
@@ -220,6 +235,7 @@ void display()
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, shadowMap->GetTexture("first"));
+	//glBindTexture(GL_TEXTURE_2D, texture->GetId());
 
 	copyTex->Uniforms("baseTex").SetValue(0);
 	copyTex->Use();
