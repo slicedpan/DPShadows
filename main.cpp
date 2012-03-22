@@ -29,10 +29,14 @@ int height = 600;
 bool keyState[256];
 bool lastKeyState[256];
 
+bool lightControl = false;
+
 int rootParticleNum = 16;
 
 FPSCamera* camera;
 CameraController* controller;
+
+FPSCamera* lightCam;
 
 Shader* shadowGen;
 Shader* copyTex;
@@ -53,6 +57,8 @@ Mat4 lightWorldView;
 float lightYaw = 0.0f;
 float lightPitch = 0.0f;
 
+float lightRadius;
+
 GLuint texID;
 
 double lastTime;
@@ -66,8 +72,9 @@ FrameBufferObject* shadowMap;
 
 void CreateFBOs()
 {
-	shadowMap = new FrameBufferObject(width, height, 24, 0, GL_RG16F, GL_TEXTURE_2D);
+	shadowMap = new FrameBufferObject(width, height, 24, 0, GL_RG32F, GL_TEXTURE_2D);
 	shadowMap->AttachTexture("first");
+
 	if (!shadowMap->CheckCompleteness())
 		throw;
 }
@@ -86,6 +93,12 @@ void setup()
 	controller->MaxSpeed = 0.03;
 	controller->PitchAngularVelocity *= 10.0f;
 	controller->YawAngularVelocity *= 10.0f;
+	lightCam = new FPSCamera();
+	lightCam->SetZNear(0.001f);
+	lightRadius = 25.0f;
+	lightCam->SetZFar(lightRadius);
+	lightCam->Pitch = M_PI / 2.0f;
+	lightCam->Position[1] = 15.0f;
 	GLenum err = glewInit();
 	if (err != GLEW_OK)
 	{
@@ -125,7 +138,7 @@ void update()
 		frameCount = 0;
 		timeCount = 0.0;
 		char buf[100];
-		sprintf(buf, "FPS: %d, GL Version %d.%d, rev %d", currentFps, glMajorVersion, glMinorVersion, glRev);
+		sprintf(buf, "FPS: %d, GL Version %d.%d, rev %d. lightPitch: %lf", currentFps, glMajorVersion, glMinorVersion, glRev, lightPitch);
 		glfwSetWindowTitle(buf);
 	}
 	if (keyState['W'])
@@ -144,15 +157,9 @@ void update()
 	controller->ChangePitch(-elapsedTime * dY);
 	controller->ChangeYaw(-elapsedTime * dX);
 	dY = 0;
-	dX = 0;
-
-	lightWorldView.MakeHRot(Vec3(1.0f, 0.0f, 0.0f), lightPitch);
-	lightWorldView *= HRot4(Vec3(0.0f, 1.0f, 0.0f), lightYaw);
-	lightWorldView *= HTrans4(lightPos);
-	
+	dX = 0;	
 }
 
-float lightRadius = 100.0f;
 
 void display()
 {
@@ -172,13 +179,11 @@ void display()
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
 
-	basic->Use();
-	basic->Uniforms("View").SetValue(camera->GetViewTransform());
-	basic->Uniforms("Projection").SetValue(camera->GetProjectionMatrix());
+	shadowGen->Use();
+	shadowGen->Uniforms("lightWorldView").SetValue(lightCam->GetViewTransform());
+	shadowGen->Uniforms("lightRadius").SetValue(lightRadius);
 	
 	Mat4 world = Mat4(vl_one);
-	basic->Uniforms("World").SetValue(world);
-	basic->Uniforms("lightPos").SetValue(lightPos);
 	basic->Uniforms("lightRadius").SetValue(lightRadius);
 
 	mesh->Draw();
@@ -190,8 +195,13 @@ void display()
 	basic->Uniforms("Projection").SetValue(camera->GetProjectionMatrix());	
 	
 	basic->Uniforms("World").SetValue(world);
-	basic->Uniforms("lightPos").SetValue(lightPos);
+	basic->Uniforms("lightPos").SetValue(lightCam->Position);
 	basic->Uniforms("lightRadius").SetValue(lightRadius);
+	basic->Uniforms("lightCone").SetValue(lightCam->GetForwardVector());
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, shadowMap->GetTexture("first"));
+	basic->Uniforms("shadowTex").SetValue(0);
+	basic->Uniforms("lightWorldView").SetValue(lightCam->GetViewTransform());
 
 	/*
 	glBegin(GL_TRIANGLES);
@@ -242,7 +252,8 @@ void display()
 
 	glDisable(GL_DEPTH_TEST);
 
-	QuadDrawer::DrawQuad(Vec2(0.0, 0.0), Vec2(1.0, 1.0));
+	if (lightControl)
+		QuadDrawer::DrawQuad(Vec2(0.0, 0.0), Vec2(1.0, 1.0));
 
 	if (limitFPS) 
 		glfwSleep(0.016 - glfwGetTime() + frameBegin);
@@ -290,6 +301,14 @@ void KeyboardHandler(int keyCode, int state)
 		limitFPS = !limitFPS;
 	if (keyCode == GLFW_KEY_ESC)
 		Exit();	
+	if (keyCode == 'L' && state == GLFW_PRESS)
+	{	
+		lightControl = !lightControl;
+		if (lightControl)
+			controller->SetCamera(lightCam);
+		else
+			controller->SetCamera(camera);
+	}
 }
 
 void MouseMovementHandler(int x, int y)
