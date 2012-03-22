@@ -11,6 +11,7 @@
 #include <math.h>
 #include "glm\glm.h"
 #include "QuadDrawer.h"
+#include "BasicTexture.h"
 
 bool running = true;
 bool limitFPS = true;
@@ -28,15 +29,21 @@ int height = 600;
 bool keyState[256];
 bool lastKeyState[256];
 
+bool lightControl = false;
+
 int rootParticleNum = 16;
 
 FPSCamera* camera;
 CameraController* controller;
 
+FPSCamera* lightCam;
+
 Shader* shadowGen;
 Shader* copyTex;
 Shader* basic;
 ShaderManager* shaderManager;
+
+BasicTexture* texture;
 
 Mat4 Projection;
 
@@ -49,6 +56,8 @@ bool debugDraw = false;
 Mat4 lightWorldView;
 float lightYaw = 0.0f;
 float lightPitch = 0.0f;
+
+float lightRadius;
 
 GLuint texID;
 
@@ -63,8 +72,9 @@ FrameBufferObject* shadowMap;
 
 void CreateFBOs()
 {
-	shadowMap = new FrameBufferObject(width, height, 16, 0, GL_RG16F, GL_TEXTURE_2D);
+	shadowMap = new FrameBufferObject(width, height, 24, 0, GL_RG32F, GL_TEXTURE_2D);
 	shadowMap->AttachTexture("first");
+
 	if (!shadowMap->CheckCompleteness())
 		throw;
 }
@@ -83,6 +93,12 @@ void setup()
 	controller->MaxSpeed = 0.03;
 	controller->PitchAngularVelocity *= 10.0f;
 	controller->YawAngularVelocity *= 10.0f;
+	lightCam = new FPSCamera();
+	lightCam->SetZNear(0.001f);
+	lightRadius = 25.0f;
+	lightCam->SetZFar(lightRadius);
+	lightCam->Pitch = M_PI / 2.0f;
+	lightCam->Position[1] = 15.0f;
 	GLenum err = glewInit();
 	if (err != GLEW_OK)
 	{
@@ -94,8 +110,9 @@ void setup()
 	shadowGen = new Shader("Assets/Shaders/shadowGen.vert", "Assets/Shaders/shadowGen.frag", "Shadowmap Generator");
 	ShaderManager::GetSingletonPtr()->CompileShaders();
 	mesh = new VBOMesh("Assets/Meshes/sponza.obj", false, true);	
-	//mesh->Load();
-	
+	mesh->Load();
+	texture = new BasicTexture("Assets/Textures/spiderpic.png");
+	texture->Load();
 	CreateFBOs();
 	memset(keyState, 0, sizeof(bool) * 256);
 	memset(lastKeyState, 0, sizeof(bool) * 256);	
@@ -121,7 +138,7 @@ void update()
 		frameCount = 0;
 		timeCount = 0.0;
 		char buf[100];
-		sprintf(buf, "FPS: %d, GL Version %d.%d, rev %d", currentFps, glMajorVersion, glMinorVersion, glRev);
+		sprintf(buf, "FPS: %d, GL Version %d.%d, rev %d. lightPitch: %lf", currentFps, glMajorVersion, glMinorVersion, glRev, lightPitch);
 		glfwSetWindowTitle(buf);
 	}
 	if (keyState['W'])
@@ -140,43 +157,51 @@ void update()
 	controller->ChangePitch(-elapsedTime * dY);
 	controller->ChangeYaw(-elapsedTime * dX);
 	dY = 0;
-	dX = 0;
-
-	lightWorldView.MakeHRot(Vec3(1.0f, 0.0f, 0.0f), lightPitch);
-	lightWorldView *= HRot4(Vec3(0.0f, 1.0f, 0.0f), lightYaw);
-	lightWorldView *= HTrans4(lightPos);
-	
+	dX = 0;	
 }
 
-float lightRadius = 100.0f;
 
 void display()
 {
-	Mat4 world = Mat4(vl_one);
-	glClearColor(0.0, 0.0, 0.0, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glClearColor(0.0, 0.0, 0.0, 0.0);
+	glClearDepth(1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
+	glDisable(GL_TEXTURE_2D);
 
 	shadowMap->Bind();
+
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
 
 	shadowGen->Use();
-	shadowGen->Uniforms("lightWorldView").SetValue(world);
+	shadowGen->Uniforms("lightWorldView").SetValue(lightCam->GetViewTransform());
 	shadowGen->Uniforms("lightRadius").SetValue(lightRadius);
-	//mesh->Draw();
+	
+	Mat4 world = Mat4(vl_one);
+	basic->Uniforms("lightRadius").SetValue(lightRadius);
+
+	mesh->Draw();
 
 	shadowMap->Unbind();
 	
 	basic->Use();
 	basic->Uniforms("View").SetValue(camera->GetViewTransform());
-	basic->Uniforms("Projection").SetValue(camera->GetProjectionMatrix());
-	
+	basic->Uniforms("Projection").SetValue(camera->GetProjectionMatrix());	
 	
 	basic->Uniforms("World").SetValue(world);
-	basic->Uniforms("lightPos").SetValue(lightPos);
+	basic->Uniforms("lightPos").SetValue(lightCam->Position);
 	basic->Uniforms("lightRadius").SetValue(lightRadius);
+	basic->Uniforms("lightCone").SetValue(lightCam->GetForwardVector());
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, shadowMap->GetTexture("first"));
+	basic->Uniforms("shadowTex").SetValue(0);
+	basic->Uniforms("lightWorldView").SetValue(lightCam->GetViewTransform());
 
 	/*
 	glBegin(GL_TRIANGLES);
@@ -202,7 +227,7 @@ void display()
 	if (debugDraw)
 		mesh->DrawImmediate();
 	else
-		//mesh->Draw();
+		mesh->Draw();
 
 	glUseProgram(0);
 
@@ -220,13 +245,15 @@ void display()
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, shadowMap->GetTexture("first"));
+	//glBindTexture(GL_TEXTURE_2D, texture->GetId());
 
 	copyTex->Uniforms("baseTex").SetValue(0);
 	copyTex->Use();
 
 	glDisable(GL_DEPTH_TEST);
 
-	QuadDrawer::DrawQuad(Vec2(0.0, 0.0), Vec2(1.0, 1.0));
+	if (lightControl)
+		QuadDrawer::DrawQuad(Vec2(0.0, 0.0), Vec2(1.0, 1.0));
 
 	if (limitFPS) 
 		glfwSleep(0.016 - glfwGetTime() + frameBegin);
@@ -274,6 +301,14 @@ void KeyboardHandler(int keyCode, int state)
 		limitFPS = !limitFPS;
 	if (keyCode == GLFW_KEY_ESC)
 		Exit();	
+	if (keyCode == 'L' && state == GLFW_PRESS)
+	{	
+		lightControl = !lightControl;
+		if (lightControl)
+			controller->SetCamera(lightCam);
+		else
+			controller->SetCamera(camera);
+	}
 }
 
 void MouseMovementHandler(int x, int y)

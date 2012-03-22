@@ -1,10 +1,8 @@
 #version 330
 
-uniform vec3 lightPos;
-
 out vec2 out_colour;
 smooth in float depth;
-smooth in float depthSquared;
+uniform float lightRadius;
 
 void main()
 {		

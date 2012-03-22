@@ -3,7 +3,7 @@
 layout(location = 0) in vec2 coord;
 layout(location = 1) in vec2 texCoord;
 
-out vec2 fragTexCoord;
+smooth out vec2 fragTexCoord;
 
 uniform vec2 pixSize;
 uniform sampler2D baseTex;
