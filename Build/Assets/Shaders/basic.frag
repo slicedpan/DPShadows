@@ -2,6 +2,9 @@
 
 uniform vec3 lightPos;
 uniform float lightRadius;
+uniform float invScreenHeight;
+uniform float invScreenWidth;
+uniform float noiseTexSize;
 
 layout(location = 0)out vec4 out_colour;
 smooth in vec3 oNormal;
@@ -10,6 +13,7 @@ smooth in vec3 worldPos;
 uniform vec3 lightCone;
 uniform mat4x4 lightWorldView;
 uniform sampler2D shadowTex;
+uniform sampler2D noiseTex;
 
 float getShadowAtten(vec2 texCoord, float baseDepth)
 {
@@ -29,6 +33,28 @@ void main()
 	lightDir /= lightDist;
 	vec3 lightColour = vec3(0.0, 0.0, 0.0);
 	float coneAtten = sqrt(max(dot(lightCone, lightDir), 0.0));
+	vec2 noise[4];
+	
+	vec2 noiseCoord[4];
+	noiseCoord[0] = gl_FragCoord.xy;
+	noiseCoord[1] = gl_FragCoord.xy + vec2(0.0, invScreenHeight);
+	noiseCoord[2] = gl_FragCoord.xy + vec2(invScreenWidth, -invScreenHeight);
+	noiseCoord[3] = gl_FragCoord.xy + vec2(-invScreenWidth, invScreenHeight);
+	
+	for (int i = 0; i < 4; ++i)
+	{
+		noiseCoord[i].xy += 1.0;
+		noiseCoord[i].xy /= 2.0;
+		noiseCoord[i].x /= invScreenWidth;
+		noiseCoord[i].y /= invScreenHeight;
+		noiseCoord[i].xy /= noiseTexSize;	
+		noiseCoord[i] *= 2.0;
+	
+		noise[i] = texture(noiseTex, noiseCoord[i]).xy;	
+
+		noise[i].x *= invScreenWidth;
+		noise[i].y *= invScreenHeight;
+	}
 	
 	vec3 lightWVPos = (lightWorldView * vec4(worldPos, 1.0)).xyz;
 	lightWVPos = normalize(lightWVPos);
@@ -39,12 +65,12 @@ void main()
 	vec2 shadowInfo = texture(shadowTex, lightWVPos.xy).xy;
 	float realDepth = lightDist / lightRadius;
 	
-	float shadowAtten = getShadowAtten(lightWVPos.xy, realDepth);	
-	float offsetx = 1.0 / 800.0;
-	float offsety = 1.0 / 600.0;
-	shadowAtten += getShadowAtten(lightWVPos.xy + vec2(offsetx, offsety), realDepth);
-	shadowAtten += getShadowAtten(lightWVPos.xy - vec2(offsetx, offsety), realDepth);
-	shadowAtten /= 3.0;
+	float shadowAtten = 0.0;
+	for (int i = 0; i < 4; ++i)
+	{
+		shadowAtten += getShadowAtten(lightWVPos.xy + noise[i], realDepth);		
+	}
+	shadowAtten /= 4.0;
 	
 	float nDotL = max(0.0, dot(lightDir, normalize(oNormal)));
 	float attenuation = pow(max((1 - lightDist/lightRadius), 0.0), 2.0) * coneAtten * shadowAtten;

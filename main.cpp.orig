@@ -43,7 +43,7 @@ Shader* copyTex;
 Shader* basic;
 ShaderManager* shaderManager;
 
-BasicTexture* noiseTexture;
+BasicTexture* texture;
 
 Mat4 Projection;
 
@@ -109,19 +109,15 @@ void setup()
 	copyTex = new Shader("Assets/Shaders/copy.vert", "Assets/Shaders/copy.frag", "Copy");
 	shadowGen = new Shader("Assets/Shaders/shadowGen.vert", "Assets/Shaders/shadowGen.frag", "Shadowmap Generator");
 	ShaderManager::GetSingletonPtr()->CompileShaders();
-
-	noiseTexture = new BasicTexture("Assets/Textures/rgnoise.png");
-	noiseTexture->Load();
-
 	mesh = new VBOMesh("Assets/Meshes/sponza.obj", false, true);	
+<<<<<<< HEAD
+	//mesh->Load();
+	
+=======
 	mesh->Load();
-
-	glBindTexture(GL_TEXTURE_2D, noiseTexture->GetId());
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glBindTexture(GL_TEXTURE_2D, 0);
+	texture = new BasicTexture("Assets/Textures/spiderpic.png");
+	texture->Load();
+>>>>>>> 8615df13d175e34f8bc5e2fb50c63f6673163746
 	CreateFBOs();
 	memset(keyState, 0, sizeof(bool) * 256);
 	memset(lastKeyState, 0, sizeof(bool) * 256);	
@@ -172,16 +168,21 @@ void update()
 
 void display()
 {
+<<<<<<< HEAD
+	Mat4 world = Mat4(vl_one);
+	glClearColor(0.0, 0.0, 0.0, 1.0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+=======
 	glClearColor(0.0, 0.0, 0.0, 0.0);
 	glClearDepth(1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	
+>>>>>>> 8615df13d175e34f8bc5e2fb50c63f6673163746
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
 	glDisable(GL_TEXTURE_2D);
 
 	shadowMap->Bind();
-
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
@@ -189,6 +190,11 @@ void display()
 	glCullFace(GL_BACK);
 
 	shadowGen->Use();
+<<<<<<< HEAD
+	shadowGen->Uniforms("lightWorldView").SetValue(world);
+	shadowGen->Uniforms("lightRadius").SetValue(lightRadius);
+	//mesh->Draw();
+=======
 	shadowGen->Uniforms("lightWorldView").SetValue(lightCam->GetViewTransform());
 	shadowGen->Uniforms("lightRadius").SetValue(lightRadius);
 	
@@ -196,6 +202,7 @@ void display()
 	basic->Uniforms("lightRadius").SetValue(lightRadius);
 
 	mesh->Draw();
+>>>>>>> 8615df13d175e34f8bc5e2fb50c63f6673163746
 
 	shadowMap->Unbind();
 	
@@ -203,19 +210,17 @@ void display()
 	basic->Uniforms("View").SetValue(camera->GetViewTransform());
 	basic->Uniforms("Projection").SetValue(camera->GetProjectionMatrix());	
 	
+<<<<<<< HEAD
+	
+=======
+>>>>>>> 8615df13d175e34f8bc5e2fb50c63f6673163746
 	basic->Uniforms("World").SetValue(world);
 	basic->Uniforms("lightPos").SetValue(lightCam->Position);
 	basic->Uniforms("lightRadius").SetValue(lightRadius);
 	basic->Uniforms("lightCone").SetValue(lightCam->GetForwardVector());
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, shadowMap->GetTexture("first"));
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, noiseTexture->GetId());
-	basic->Uniforms("invScreenWidth").SetValue(1.0f / (float)width);
-	basic->Uniforms("invScreenHeight").SetValue(1.0f / (float)height);
 	basic->Uniforms("shadowTex").SetValue(0);
-	basic->Uniforms("noiseTex").SetValue(1);
-	basic->Uniforms("noiseTexSize").SetValue(64.0f);
 	basic->Uniforms("lightWorldView").SetValue(lightCam->GetViewTransform());
 
 	/*
@@ -242,7 +247,7 @@ void display()
 	if (debugDraw)
 		mesh->DrawImmediate();
 	else
-		mesh->Draw();
+		//mesh->Draw();
 
 	glUseProgram(0);
 
@@ -260,9 +265,10 @@ void display()
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, shadowMap->GetTexture("first"));
+	//glBindTexture(GL_TEXTURE_2D, texture->GetId());
 
-	copyTex->Use();
 	copyTex->Uniforms("baseTex").SetValue(0);
+	copyTex->Use();
 
 	glDisable(GL_DEPTH_TEST);
 
