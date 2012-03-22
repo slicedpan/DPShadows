@@ -10,6 +10,6 @@ uniform sampler2D baseTex;
 
 void main()
 {	
-	fragTexCoord = coord;
+	fragTexCoord = texCoord;
 	gl_Position = vec4(coord.x, coord.y, 0.0, 1.0);
 } 

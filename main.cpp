@@ -94,7 +94,7 @@ void setup()
 	shadowGen = new Shader("Assets/Shaders/shadowGen.vert", "Assets/Shaders/shadowGen.frag", "Shadowmap Generator");
 	ShaderManager::GetSingletonPtr()->CompileShaders();
 	mesh = new VBOMesh("Assets/Meshes/sponza.obj", false, true);	
-	mesh->Load();
+	//mesh->Load();
 	
 	CreateFBOs();
 	memset(keyState, 0, sizeof(bool) * 256);
@@ -152,20 +152,20 @@ float lightRadius = 100.0f;
 
 void display()
 {
-	glClearColor(0.0, 0.0, 0.0, 0.0);
+	Mat4 world = Mat4(vl_one);
+	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
 
 	shadowMap->Bind();
-
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	shadowGen->Use();
-	shadowGen->Uniforms("lightWorldView").SetValue(camera->GetViewTransform());
+	shadowGen->Uniforms("lightWorldView").SetValue(world);
 	shadowGen->Uniforms("lightRadius").SetValue(lightRadius);
-	mesh->Draw();
+	//mesh->Draw();
 
 	shadowMap->Unbind();
 	
@@ -173,7 +173,7 @@ void display()
 	basic->Uniforms("View").SetValue(camera->GetViewTransform());
 	basic->Uniforms("Projection").SetValue(camera->GetProjectionMatrix());
 	
-	Mat4 world = Mat4(vl_one);
+	
 	basic->Uniforms("World").SetValue(world);
 	basic->Uniforms("lightPos").SetValue(lightPos);
 	basic->Uniforms("lightRadius").SetValue(lightRadius);
@@ -202,7 +202,7 @@ void display()
 	if (debugDraw)
 		mesh->DrawImmediate();
 	else
-		mesh->Draw();
+		//mesh->Draw();
 
 	glUseProgram(0);
 
