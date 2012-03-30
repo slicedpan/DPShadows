@@ -42,6 +42,7 @@ FPSCamera* lightCam;
 Shader* shadowGen;
 Shader* copyTex;
 Shader* basic;
+Shader* normBasic;
 ShaderManager* shaderManager;
 
 BasicTexture* noiseTexture;
@@ -53,6 +54,7 @@ int glMinorVersion;
 int glRev;
 
 bool debugDraw = false;
+bool animateLight = false;
 
 Mat4 lightWorldView;
 float lightYaw = 0.0f;
@@ -74,10 +76,10 @@ FrameBufferObject* shadowMap2;
 
 void CreateFBOs()
 {
-	shadowMap = new FrameBufferObject(768, 768, 24, 0, GL_RG16F, GL_TEXTURE_2D);
+	shadowMap = new FrameBufferObject(1536, 1536, 24, 0, GL_RG32F, GL_TEXTURE_2D);
 	shadowMap->AttachTexture("first", GL_LINEAR, GL_LINEAR_MIPMAP_LINEAR);
 
-	shadowMap2 = new FrameBufferObject(512, 512, 0, 0, GL_RG16F, GL_TEXTURE_2D);
+	shadowMap2 = new FrameBufferObject(768, 768, 0, 0, GL_RG32F, GL_TEXTURE_2D);
 	shadowMap2->AttachTexture("first", GL_LINEAR, GL_LINEAR);
 
 	if (!shadowMap->CheckCompleteness())
@@ -110,7 +112,8 @@ void setup()
 		printf("%s", glewGetErrorString(err));
 		return;	
 	}	
-	basic = new Shader("Assets/Shaders/basic.vert", "Assets/Shaders/basic.frag", "Basic");
+	basic = new Shader("Assets/Shaders/basic.vert", "Assets/Shaders/varianceBasic.frag", "Variance Shadow Map Basic");
+	normBasic = new Shader("Assets/Shaders/basic.vert", "Assets/Shaders/normBasic.frag", "Normal + Depth Shadow Map Basic");
 	copyTex = new Shader("Assets/Shaders/copy.vert", "Assets/Shaders/copy.frag", "Copy");
 	shadowGen = new Shader("Assets/Shaders/shadowGen.vert", "Assets/Shaders/shadowGen.frag", "Shadowmap Generator");
 	ShaderManager::GetSingletonPtr()->CompileShaders();
@@ -139,6 +142,7 @@ int currentFps;
 int dX, dY;
 
 Vec3 lightPos(0.0, 30.0, 0.0);
+double lightPosFactor = 0.0f;
 
 void update()
 {
@@ -177,6 +181,17 @@ void update()
 	controller->ChangeYaw(-elapsedTime * dX);
 	dY = 0;
 	dX = 0;	
+
+	if (animateLight)
+		lightPosFactor += elapsedTime * (1.0 / 30.0);
+
+	if (lightPosFactor > 1.0)
+		lightPosFactor -= 1.0;
+
+	lightPos[0] = sin(lightPosFactor * 2 * M_PI) * 5.0;
+	lightPos[1] = cos(lightPosFactor * 2 * M_PI) * 5.0 + 10.0;
+
+	lightCam->Position = lightPos;
 }
 
 
@@ -364,6 +379,8 @@ void KeyboardHandler(int keyCode, int state)
 	{
 		if (keyCode == 'B')
 			shadowBlur = !shadowBlur;
+		if (keyCode == 'O')
+			animateLight = !animateLight;
 	}
 }
 
