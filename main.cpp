@@ -15,6 +15,7 @@
 
 bool running = true;
 bool limitFPS = true;
+bool shadowBlur = false;
 
 #define BUFFER_OFFSET(i) ((char*)NULL + i)
 
@@ -69,11 +70,15 @@ float RandomFloat()
 }
 
 FrameBufferObject* shadowMap;
+FrameBufferObject* shadowMap2;
 
 void CreateFBOs()
 {
-	shadowMap = new FrameBufferObject(width, height, 24, 0, GL_RG32F, GL_TEXTURE_2D);
-	shadowMap->AttachTexture("first");
+	shadowMap = new FrameBufferObject(768, 768, 24, 0, GL_RG16F, GL_TEXTURE_2D);
+	shadowMap->AttachTexture("first", GL_LINEAR, GL_LINEAR_MIPMAP_LINEAR);
+
+	shadowMap2 = new FrameBufferObject(512, 512, 0, 0, GL_RG16F, GL_TEXTURE_2D);
+	shadowMap2->AttachTexture("first", GL_LINEAR, GL_LINEAR);
 
 	if (!shadowMap->CheckCompleteness())
 		throw;
@@ -110,7 +115,7 @@ void setup()
 	shadowGen = new Shader("Assets/Shaders/shadowGen.vert", "Assets/Shaders/shadowGen.frag", "Shadowmap Generator");
 	ShaderManager::GetSingletonPtr()->CompileShaders();
 
-	noiseTexture = new BasicTexture("Assets/Textures/rgnoise.png");
+	noiseTexture = new BasicTexture("Assets/Textures/rgnoisehi.png");
 	noiseTexture->Load();
 
 	mesh = new VBOMesh("Assets/Meshes/sponza.obj", false, true);	
@@ -119,8 +124,8 @@ void setup()
 	glBindTexture(GL_TEXTURE_2D, noiseTexture->GetId());
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glBindTexture(GL_TEXTURE_2D, 0);
 	CreateFBOs();
 	memset(keyState, 0, sizeof(bool) * 256);
@@ -147,7 +152,12 @@ void update()
 		frameCount = 0;
 		timeCount = 0.0;
 		char buf[100];
-		sprintf(buf, "FPS: %d, GL Version %d.%d, rev %d. lightPitch: %lf", currentFps, glMajorVersion, glMinorVersion, glRev, lightPitch);
+		char fpsl[6];
+		if (limitFPS)
+			sprintf(fpsl, "true");
+		else
+			sprintf(fpsl, "false");
+		sprintf(buf, "FPS: %d, GL Version %d.%d, rev %d. FPSLimit: %s", currentFps, glMajorVersion, glMinorVersion, glRev, fpsl);
 		glfwSetWindowTitle(buf);
 	}
 	if (keyState['W'])
@@ -198,6 +208,32 @@ void display()
 	mesh->Draw();
 
 	shadowMap->Unbind();
+	if (shadowBlur)
+	{
+		shadowMap2->Bind();
+		copyTex->Use();
+		copyTex->Uniforms("baseTex").SetValue(0);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, shadowMap->GetTexture(0));
+		QuadDrawer::DrawQuad(Vec2(-1.0f, -1.0f), Vec2(1.0f, 1.0f));
+		shadowMap2->Unbind();
+		shadowMap->Bind();
+		glBindTexture(GL_TEXTURE_2D, shadowMap2->GetTexture(0));
+		QuadDrawer::DrawQuad(Vec2(-1.0f, -1.0f), Vec2(1.0f, 1.0f));		
+		shadowMap->Unbind();
+
+		shadowMap2->Bind();
+		copyTex->Use();
+		copyTex->Uniforms("baseTex").SetValue(0);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, shadowMap->GetTexture(0));
+		QuadDrawer::DrawQuad(Vec2(-1.0f, -1.0f), Vec2(1.0f, 1.0f));
+		shadowMap2->Unbind();
+		shadowMap->Bind();
+		glBindTexture(GL_TEXTURE_2D, shadowMap2->GetTexture(0));
+		QuadDrawer::DrawQuad(Vec2(-1.0f, -1.0f), Vec2(1.0f, 1.0f));		
+		shadowMap->Unbind();
+	}
 	
 	basic->Use();
 	basic->Uniforms("View").SetValue(camera->GetViewTransform());
@@ -209,13 +245,14 @@ void display()
 	basic->Uniforms("lightCone").SetValue(lightCam->GetForwardVector());
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, shadowMap->GetTexture("first"));
+	glGenerateMipmap(GL_TEXTURE_2D);
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, noiseTexture->GetId());
 	basic->Uniforms("invScreenWidth").SetValue(1.0f / (float)width);
 	basic->Uniforms("invScreenHeight").SetValue(1.0f / (float)height);
 	basic->Uniforms("shadowTex").SetValue(0);
 	basic->Uniforms("noiseTex").SetValue(1);
-	basic->Uniforms("noiseTexSize").SetValue(64.0f);
+	basic->Uniforms("noiseTexSize").SetValue(512.0f);
 	basic->Uniforms("lightWorldView").SetValue(lightCam->GetViewTransform());
 
 	/*
@@ -322,6 +359,11 @@ void KeyboardHandler(int keyCode, int state)
 			controller->SetCamera(lightCam);
 		else
 			controller->SetCamera(camera);
+	}
+	if (state == GLFW_PRESS)
+	{
+		if (keyCode == 'B')
+			shadowBlur = !shadowBlur;
 	}
 }
 

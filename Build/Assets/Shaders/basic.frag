@@ -15,13 +15,16 @@ uniform mat4x4 lightWorldView;
 uniform sampler2D shadowTex;
 uniform sampler2D noiseTex;
 
+uniform int samples = 1;
+uniform float noiseMult = 0.4;
+
 float getShadowAtten(vec2 texCoord, float baseDepth)
 {
 	float atten = 1.0;
 	vec2 shadow = texture(shadowTex, texCoord).xy;
 	if (shadow.x < baseDepth + 0.00001)
 	{
-		atten = min(abs(pow(shadow.x, 2.0) - shadow.y) * 15.0, 1.0);
+		atten = min(abs(pow(shadow.x, 2.0) - shadow.y) * 25.0, 1.0);
 	}
 	return atten;
 }
@@ -34,14 +37,19 @@ void main()
 	vec3 lightColour = vec3(0.0, 0.0, 0.0);
 	float coneAtten = sqrt(max(dot(lightCone, lightDir), 0.0));
 	vec2 noise[4];
+	vec3 lightWVPos = (lightWorldView * vec4(worldPos, 1.0)).xyz;
+	float nDotL = max(0.0, dot(lightDir, normalize(oNormal)));
 	
 	vec2 noiseCoord[4];
-	noiseCoord[0] = gl_FragCoord.xy;
-	noiseCoord[1] = gl_FragCoord.xy + vec2(0.0, invScreenHeight);
-	noiseCoord[2] = gl_FragCoord.xy + vec2(invScreenWidth, -invScreenHeight);
-	noiseCoord[3] = gl_FragCoord.xy + vec2(-invScreenWidth, invScreenHeight);
+	noiseCoord[0] = lightWVPos.xy / 2.0 + vec2(0.5, 0.5);
+	noiseCoord[0] *= (2 - nDotL);
+	//noiseCoord[0] = gl_FragCoord.xy / 2.0 + vec2(0.5, 0.5);
+	//noiseCoord[0] *= 0.25;
+	noiseCoord[1] = noiseCoord[0] + vec2(0.0, invScreenHeight);
+	noiseCoord[2] = noiseCoord[0] + vec2(invScreenWidth, -invScreenHeight);
+	noiseCoord[3] = noiseCoord[0] + vec2(-invScreenWidth, invScreenHeight);
 	
-	for (int i = 0; i < 4; ++i)
+	for (int i = 0; i < samples; ++i)
 	{
 		noiseCoord[i].xy += 1.0;
 		noiseCoord[i].xy /= 2.0;
@@ -50,13 +58,12 @@ void main()
 		noiseCoord[i].xy /= noiseTexSize;	
 		noiseCoord[i] *= 2.0;
 	
-		noise[i] = texture(noiseTex, noiseCoord[i]).xy;	
+		noise[i] = (texture(noiseTex, noiseCoord[i]).xy - vec2(0.5, 0.5)) * noiseMult;	
 
 		noise[i].x *= invScreenWidth;
 		noise[i].y *= invScreenHeight;
-	}
+	}	
 	
-	vec3 lightWVPos = (lightWorldView * vec4(worldPos, 1.0)).xyz;
 	lightWVPos = normalize(lightWVPos);
 	lightWVPos.z += 1;
 	lightWVPos.xy /= lightWVPos.z;
@@ -66,13 +73,13 @@ void main()
 	float realDepth = lightDist / lightRadius;
 	
 	float shadowAtten = 0.0;
-	for (int i = 0; i < 4; ++i)
+	for (int i = 0; i < samples; ++i)
 	{
 		shadowAtten += getShadowAtten(lightWVPos.xy + noise[i], realDepth);		
 	}
-	shadowAtten /= 4.0;
-	
-	float nDotL = max(0.0, dot(lightDir, normalize(oNormal)));
+	shadowAtten /= samples;
+	shadowAtten += 0.1;
+
 	float attenuation = pow(max((1 - lightDist/lightRadius), 0.0), 2.0) * coneAtten * shadowAtten;
 	lightColour = vec3(1.0, 1.0, 1.0) * nDotL * attenuation;
 	lightColour.x = min(lightColour.x + 0.1, 1.0);
