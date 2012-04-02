@@ -16,7 +16,7 @@ uniform sampler2D shadowTex;
 uniform sampler2D noiseTex;
 
 uniform int samples = 4;
-uniform float noiseMult = 0.4;
+uniform float noiseMult = 5.0;
 
 float getShadowAtten(vec2 texCoord, float baseDepth, float depthBias)
 {

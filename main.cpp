@@ -32,8 +32,6 @@ bool lastKeyState[256];
 
 bool lightControl = false;
 
-int rootParticleNum = 16;
-
 FPSCamera* camera;
 CameraController* controller;
 
@@ -64,6 +62,8 @@ float lightRadius;
 
 GLuint texID;
 
+int downsamplePasses = 0;
+
 double lastTime;
 
 float RandomFloat()
@@ -76,7 +76,7 @@ FrameBufferObject* shadowMap2;
 
 void CreateFBOs()
 {
-	shadowMap = new FrameBufferObject(1536, 1536, 24, 0, GL_RG32F, GL_TEXTURE_2D);
+	shadowMap = new FrameBufferObject(1024, 1024, 24, 0, GL_RG32F, GL_TEXTURE_2D);
 	shadowMap->AttachTexture("first", GL_LINEAR, GL_LINEAR_MIPMAP_LINEAR);
 
 	shadowMap2 = new FrameBufferObject(768, 768, 0, 0, GL_RG32F, GL_TEXTURE_2D);
@@ -161,7 +161,7 @@ void update()
 			sprintf(fpsl, "true");
 		else
 			sprintf(fpsl, "false");
-		sprintf(buf, "FPS: %d, GL Version %d.%d, rev %d. FPSLimit: %s", currentFps, glMajorVersion, glMinorVersion, glRev, fpsl);
+		sprintf(buf, "FPS: %d, GL Version %d.%d, rev %d. downsamples: %d", currentFps, glMajorVersion, glMinorVersion, glRev, downsamplePasses);
 		glfwSetWindowTitle(buf);
 	}
 	if (keyState['W'])
@@ -223,20 +223,8 @@ void display()
 	mesh->Draw();
 
 	shadowMap->Unbind();
-	if (shadowBlur)
+	for (int i = 0; i < downsamplePasses; ++i)
 	{
-		shadowMap2->Bind();
-		copyTex->Use();
-		copyTex->Uniforms("baseTex").SetValue(0);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, shadowMap->GetTexture(0));
-		QuadDrawer::DrawQuad(Vec2(-1.0f, -1.0f), Vec2(1.0f, 1.0f));
-		shadowMap2->Unbind();
-		shadowMap->Bind();
-		glBindTexture(GL_TEXTURE_2D, shadowMap2->GetTexture(0));
-		QuadDrawer::DrawQuad(Vec2(-1.0f, -1.0f), Vec2(1.0f, 1.0f));		
-		shadowMap->Unbind();
-
 		shadowMap2->Bind();
 		copyTex->Use();
 		copyTex->Uniforms("baseTex").SetValue(0);
@@ -378,7 +366,10 @@ void KeyboardHandler(int keyCode, int state)
 	if (state == GLFW_PRESS)
 	{
 		if (keyCode == 'B')
-			shadowBlur = !shadowBlur;
+			downsamplePasses -= 1;
+		if (keyCode == 'N')
+			downsamplePasses += 1;
+
 		if (keyCode == 'O')
 			animateLight = !animateLight;
 	}
