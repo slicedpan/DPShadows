@@ -14,6 +14,7 @@ uniform vec3 lightCone;
 uniform mat4x4 lightWorldView;
 uniform sampler2D shadowTex;
 uniform sampler2D noiseTex;
+uniform sampler2D gDepth;
 
 uniform int samples = 4;
 uniform float noiseMult = 5.0;
@@ -21,7 +22,7 @@ uniform float noiseMult = 5.0;
 float getShadowAtten(vec2 texCoord, float baseDepth, float depthBias)
 {
 	float atten = 1.0;
-	vec2 shadow = texture(shadowTex, texCoord).xy;
+	vec2 shadow = texture(shadowTex, texCoord, 5.0).xy;
 	if (shadow.x < baseDepth - depthBias)
 	{
 		atten = min(abs(pow(shadow.x, 2.0) - shadow.y) * 10.0, 1.0);
@@ -31,6 +32,9 @@ float getShadowAtten(vec2 texCoord, float baseDepth, float depthBias)
 
 void main()
 {	
+	vec2 screenTexCoords = gl_FragCoord.xy * 2.0 - vec2(1.0, 1.0);
+	if (1)
+		return;
 	vec3 lightDir = lightPos - worldPos;
 	float lightDist = length(lightDir);
 	lightDir /= lightDist;

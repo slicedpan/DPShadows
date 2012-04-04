@@ -7,18 +7,13 @@ uniform mat4 View;
 uniform mat4 Projection;
 uniform mat4 World;
 
-uniform float lightRadius;
-
-uniform vec3 lightPos;
-
 smooth out vec3 oNormal;
 smooth out vec3 worldPos;
-
 uniform vec3 lightCone;
 
 void main()
 {	
 	worldPos = position;
 	gl_Position = Projection * View * World * vec4(position, 1.0);	
-	oNormal = normalize(normal);	
+	oNormal = normal;	
 } 

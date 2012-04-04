@@ -14,6 +14,7 @@ uniform vec3 lightCone;
 uniform mat4x4 lightWorldView;
 uniform sampler2D shadowTex;
 uniform sampler2D noiseTex;
+uniform sampler2D gDepth;
 
 uniform int samples = 4;
 uniform float noiseMult = 0.4;
@@ -31,6 +32,11 @@ float getShadowAtten(vec2 texCoord, float baseDepth, float depthBias)
 
 void main()
 {	
+	vec2 screenTexCoords = gl_FragCoord.xy * vec2(invScreenWidth, invScreenHeight);
+	float storedDepth =  texture(gDepth, screenTexCoords).x;
+	
+	if (abs(gl_FragCoord.z - storedDepth) > 0.000001)
+		discard;
 	vec3 lightDir = lightPos - worldPos;
 	float lightDist = length(lightDir);
 	lightDir /= lightDist;

@@ -41,6 +41,8 @@ Shader* shadowGen;
 Shader* copyTex;
 Shader* basic;
 Shader* normBasic;
+Shader* renderToGBuffer;
+Shader* finalDraw;
 ShaderManager* shaderManager;
 
 BasicTexture* noiseTexture;
@@ -52,6 +54,7 @@ int glMinorVersion;
 int glRev;
 
 bool debugDraw = false;
+bool drawGBuf = false;
 bool animateLight = false;
 
 Mat4 lightWorldView;
@@ -73,6 +76,8 @@ float RandomFloat()
 
 FrameBufferObject* shadowMap;
 FrameBufferObject* shadowMap2;
+FrameBufferObject* gBuf;
+FrameBufferObject* mainScene;
 
 void CreateFBOs()
 {
@@ -81,6 +86,13 @@ void CreateFBOs()
 
 	shadowMap2 = new FrameBufferObject(768, 768, 0, 0, GL_RG32F, GL_TEXTURE_2D);
 	shadowMap2->AttachTexture("first", GL_LINEAR, GL_LINEAR);
+
+	gBuf = new FrameBufferObject(width, height, 0, 0, GL_RGB, GL_TEXTURE_2D);
+	gBuf->AttachDepthTexture("depth", GL_LINEAR, GL_LINEAR, GL_DEPTH_COMPONENT32);
+	gBuf->AttachTexture("normal");	
+
+	mainScene = new FrameBufferObject(width, height, 0, 0, GL_RGB, GL_TEXTURE_2D);
+	mainScene->AttachTexture("colour");
 
 	if (!shadowMap->CheckCompleteness())
 		throw;
@@ -95,6 +107,7 @@ void setup()
 	camera->Position[2] = 5.0f;
 	camera->Position[1] = 0.5f;
 	camera->Position[0] = 0.5f;
+	camera->SetZFar(100.0f);
 	controller = new CameraController();
 	controller->SetCamera(camera);
 	controller->MaxSpeed = 0.03;
@@ -113,9 +126,11 @@ void setup()
 		return;	
 	}	
 	basic = new Shader("Assets/Shaders/basic.vert", "Assets/Shaders/varianceBasic.frag", "Variance Shadow Map Basic");
-	normBasic = new Shader("Assets/Shaders/basic.vert", "Assets/Shaders/normBasic.frag", "Normal + Depth Shadow Map Basic");
+	//normBasic = new Shader("Assets/Shaders/basic.vert", "Assets/Shaders/normBasic.frag", "Normal + Depth Shadow Map Basic");
 	copyTex = new Shader("Assets/Shaders/copy.vert", "Assets/Shaders/copy.frag", "Copy");
 	shadowGen = new Shader("Assets/Shaders/shadowGen.vert", "Assets/Shaders/shadowGen.frag", "Shadowmap Generator");
+	renderToGBuffer = new Shader("Assets/Shaders/gBuf.vert", "Assets/Shaders/gBuf.frag", "Render to GBuffer");
+	finalDraw = new Shader("Assets/Shaders/copy.vert", "Assets/Shaders/final.frag", "Final Reconstruction");
 	ShaderManager::GetSingletonPtr()->CompileShaders();
 
 	noiseTexture = new BasicTexture("Assets/Textures/rgnoisehi.png");
@@ -150,20 +165,16 @@ void update()
 	frameBegin = glfwGetTime();
 	double elapsedTime = frameBegin - lastTime;
 	timeCount += elapsedTime;
+	char buf[100];
 	if (timeCount > 1.0)
 	{
 		currentFps = frameCount;
 		frameCount = 0;
-		timeCount = 0.0;
-		char buf[100];
-		char fpsl[6];
-		if (limitFPS)
-			sprintf(fpsl, "true");
-		else
-			sprintf(fpsl, "false");
-		sprintf(buf, "FPS: %d, GL Version %d.%d, rev %d. downsamples: %d", currentFps, glMajorVersion, glMinorVersion, glRev, downsamplePasses);
-		glfwSetWindowTitle(buf);
+		timeCount = 0.0;	
+
 	}
+	sprintf(buf, "FPS: %d, GL Version %d.%d, rev %d. downsamples: %d", currentFps, glMajorVersion, glMinorVersion, glRev, downsamplePasses);
+	glfwSetWindowTitle(buf);
 	if (keyState['W'])
 		controller->MoveForward();
 	if (keyState['S'])
@@ -223,6 +234,21 @@ void display()
 	mesh->Draw();
 
 	shadowMap->Unbind();
+
+	glBindTexture(GL_TEXTURE_2D, shadowMap->GetTexture(0));
+	glGenerateMipmap(GL_TEXTURE_2D);
+
+	Mat4 projViewWorld = world * camera->GetViewTransform() * camera->GetProjectionMatrix();
+
+	gBuf->Bind();
+	glEnable(GL_DEPTH_TEST);
+	glDepthMask(GL_TRUE);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	renderToGBuffer->Use();
+	renderToGBuffer->Uniforms("projViewWorld").SetValue(projViewWorld);
+	mesh->Draw();
+	gBuf->Unbind();
+
 	for (int i = 0; i < downsamplePasses; ++i)
 	{
 		shadowMap2->Bind();
@@ -237,7 +263,9 @@ void display()
 		QuadDrawer::DrawQuad(Vec2(-1.0f, -1.0f), Vec2(1.0f, 1.0f));		
 		shadowMap->Unbind();
 	}
-	
+
+	mainScene->Bind();
+	glClear(GL_COLOR_BUFFER_BIT);
 	basic->Use();
 	basic->Uniforms("View").SetValue(camera->GetViewTransform());
 	basic->Uniforms("Projection").SetValue(camera->GetProjectionMatrix());	
@@ -251,12 +279,17 @@ void display()
 	glGenerateMipmap(GL_TEXTURE_2D);
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, noiseTexture->GetId());
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, gBuf->GetTexture("depth"));
+	basic->Uniforms("gDepth").SetValue(2);
 	basic->Uniforms("invScreenWidth").SetValue(1.0f / (float)width);
 	basic->Uniforms("invScreenHeight").SetValue(1.0f / (float)height);
 	basic->Uniforms("shadowTex").SetValue(0);
 	basic->Uniforms("noiseTex").SetValue(1);
 	basic->Uniforms("noiseTexSize").SetValue(512.0f);
 	basic->Uniforms("lightWorldView").SetValue(lightCam->GetViewTransform());
+
+
 
 	/*
 	glBegin(GL_TRIANGLES);
@@ -267,10 +300,6 @@ void display()
 	glNormal3f(0.3, 0.0, 0.7);
 	glVertex3f(1.0, 1.0, 0.0);
 	glEnd();*/
-
-
-	world = HTrans4(Vec3(0.0, 0.0, 0.0));
-	basic->Uniforms("World").SetValue(world);	
 	
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
@@ -283,6 +312,8 @@ void display()
 		mesh->DrawImmediate();
 	else
 		mesh->Draw();
+
+	mainScene->Unbind();
 
 	glUseProgram(0);
 
@@ -298,6 +329,18 @@ void display()
 	glVertex3f(0.0, 0.0, 1.0);
 	glEnd();
 
+	finalDraw->Use();
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, mainScene->GetTexture(0));
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, gBuf->GetTexture("depth"));
+
+	finalDraw->Uniforms("baseTex").SetValue(0);
+	finalDraw->Uniforms("gDepth").SetValue(1);
+
+	QuadDrawer::DrawQuad(Vec2(-1.0, -1.0), Vec2(1.0, 1.0), Vec2(1.0f / width, 1.0f / height));
+	
+
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, shadowMap->GetTexture("first"));
 
@@ -308,6 +351,14 @@ void display()
 
 	if (lightControl)
 		QuadDrawer::DrawQuad(Vec2(0.0, 0.0), Vec2(1.0, 1.0));
+
+	if (drawGBuf)
+	{
+		glBindTexture(GL_TEXTURE_2D, gBuf->GetTexture("depth"));
+		QuadDrawer::DrawQuad(Vec2(-1.0, -1.0), Vec2(-0.5, -0.5));
+		glBindTexture(GL_TEXTURE_2D, gBuf->GetTexture("normal"));
+		QuadDrawer::DrawQuad(Vec2(-0.5, -1.0), Vec2(0.0, -0.5));
+	}
 
 	if (limitFPS) 
 		glfwSleep(0.016 - glfwGetTime() + frameBegin);
@@ -328,7 +379,8 @@ int lastY;
 
 void KeyboardHandler(int keyCode, int state)
 {
-	keyState[keyCode] = state;
+	if (keyCode < 256)
+		keyState[keyCode] = state;
 	if (keyCode == 'R' && state == GLFW_PRESS)
 		ShaderManager::GetSingletonPtr()->ReloadShaders();
 	if(keyCode == 'P' && state == GLFW_PRESS)
@@ -369,9 +421,10 @@ void KeyboardHandler(int keyCode, int state)
 			downsamplePasses -= 1;
 		if (keyCode == 'N')
 			downsamplePasses += 1;
-
 		if (keyCode == 'O')
 			animateLight = !animateLight;
+		if (keyCode == 'G')
+			drawGBuf = !drawGBuf;
 	}
 }
 
@@ -398,7 +451,7 @@ int main(int argc, char**argv)
 	lastTime = glfwGetTime();
 
 	glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
-	glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 0);
+	glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 3);
 
 	if (!glfwOpenWindow(800, 600, 8, 8, 8, 8, 24, 8, GLFW_WINDOW))
 		return 1;	
