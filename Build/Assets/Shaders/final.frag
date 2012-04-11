@@ -21,9 +21,9 @@ void main()
 	if (DOF > 0)
 	{
 		vec4 blurredColour = texture(halfTex, fragTexCoord);
-		out_colour = mix(out_colour, blurredColour, min(pow(abs(texture(gDepth, fragTexCoord).x - currentDepth), 1.0) * 80.0, 1.0));
+		out_colour = mix(out_colour, blurredColour, min(pow(abs(texture(gDepth, fragTexCoord).x - currentDepth), 2.5) *3200.0, 1.0));
 	}
 	if (SSAO > 0)
-		out_colour*= (1 - texture(occlusionBuf, fragTexCoord).x);
+		out_colour *= 1 - (pow(texture(occlusionBuf, fragTexCoord).x, 4.0));
 }
 

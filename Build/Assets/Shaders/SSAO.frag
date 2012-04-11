@@ -15,8 +15,8 @@ const vec3 samplePoints[4] = { vec3(1, 1, 1), vec3(-1, -1, 1), vec3(-1, 1,-1), v
 
 float computeAO(vec2 baseCoord, vec3 samplePoint, float baseDepth)
 {
-	samplePoint *= 6.0;
-	samplePoint = reflect(samplePoint, texture(gNormal, fragTexCoord ).xyz);
+	samplePoint *= 3.0;
+	samplePoint = reflect(samplePoint, texture(noiseTex, fragTexCoord ).xyz);
 	samplePoint.xy *= pixSize;
 	samplePoint.z /= 100000.0;
 	float sampleDepth = texture(gDepth, fragTexCoord + samplePoint.xy).x;

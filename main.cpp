@@ -102,10 +102,10 @@ FrameBufferObject* occlusionBack;
 
 void CreateFBOs()
 {
-	shadowMap = new FrameBufferObject(1024, 1024, 24, 0, GL_RG32F, GL_TEXTURE_2D, "Shadow Map");
+	shadowMap = new FrameBufferObject(1536, 1536, 24, 0, GL_RG32F, GL_TEXTURE_2D, "Shadow Map");
 	shadowMap->AttachTexture("first", GL_LINEAR, GL_LINEAR_MIPMAP_LINEAR);
 
-	shadowMap2 = new FrameBufferObject(768, 768, 0, 0, GL_RG32F, GL_TEXTURE_2D, "Shadow Map Downsample");
+	shadowMap2 = new FrameBufferObject(1024, 1024, 0, 0, GL_RG32F, GL_TEXTURE_2D, "Shadow Map Downsample");
 	shadowMap2->AttachTexture("first", GL_LINEAR, GL_LINEAR);
 
 	gBuf = new FrameBufferObject(width, height, 0, 0, GL_RGB, GL_TEXTURE_2D, "G-Buffer");
@@ -144,6 +144,7 @@ void setup()
 	camera->Position[1] = 0.5f;
 	camera->Position[0] = 0.5f;
 	camera->SetZFar(100.0f);
+	camera->SetFOV((float)height / (float)width);
 	controller = new CameraController();
 	controller->SetCamera(camera);
 	controller->MaxSpeed = 0.03;
@@ -160,7 +161,8 @@ void setup()
 	{
 		printf("%s", glewGetErrorString(err));
 		return;	
-	}	
+	}
+	printf("Loading Shaders...\n");
 	basic = new Shader("Assets/Shaders/basic.vert", "Assets/Shaders/varianceBasic.frag", "Variance Shadow Map Basic");
 	//normBasic = new Shader("Assets/Shaders/basic.vert", "Assets/Shaders/normBasic.frag", "Normal + Depth Shadow Map Basic");
 	copyTex = new Shader("Assets/Shaders/copy.vert", "Assets/Shaders/copy.frag", "Copy");
@@ -173,9 +175,13 @@ void setup()
 
 	ShaderManager::GetSingletonPtr()->CompileShaders();
 
+	printf("Loading Textures...\n");
 	noiseTexture = new BasicTexture("Assets/Textures/rgnoisehi.png");
 	noiseTexture->Load();
 
+	printf("Textures Loaded\n");
+
+	printf("Loading Meshes...\n");
 	mesh = new VBOMesh("Assets/Meshes/sponza.obj", false, true);	
 	mesh->Load();
 
@@ -606,7 +612,7 @@ int main(int argc, char**argv)
 	glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
 	glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 3);
 
-	if (!glfwOpenWindow(800, 600, 8, 8, 8, 8, 24, 8, GLFW_WINDOW))
+	if (!glfwOpenWindow(width, height, 8, 8, 8, 8, 24, 8, GLFW_WINDOW))
 		return 1;	
 
 	glfwGetGLVersion(&glMajorVersion, &glMinorVersion, &glRev);	
