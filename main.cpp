@@ -30,8 +30,8 @@ void CreateVBOs();
 unsigned int vertexBuf;
 unsigned int indexBuf;
 
-int width = 1280;
-int height = 720;
+int width = 800;
+int height = 600;
 
 bool keyState[256];
 bool lastKeyState[256];
@@ -102,10 +102,10 @@ FrameBufferObject* occlusionBack;
 
 void CreateFBOs()
 {
-	shadowMap = new FrameBufferObject(1536, 1536, 24, 0, GL_RG32F, GL_TEXTURE_2D, "Shadow Map");
+	shadowMap = new FrameBufferObject(768, 768, 24, 0, GL_RG32F, GL_TEXTURE_2D, "Shadow Map");
 	shadowMap->AttachTexture("first", GL_LINEAR, GL_LINEAR_MIPMAP_LINEAR);
 
-	shadowMap2 = new FrameBufferObject(1024, 1024, 0, 0, GL_RG32F, GL_TEXTURE_2D, "Shadow Map Downsample");
+	shadowMap2 = new FrameBufferObject(512, 512, 0, 0, GL_RG32F, GL_TEXTURE_2D, "Shadow Map Downsample");
 	shadowMap2->AttachTexture("first", GL_LINEAR, GL_LINEAR);
 
 	gBuf = new FrameBufferObject(width, height, 0, 0, GL_RGB, GL_TEXTURE_2D, "G-Buffer");
