@@ -16,8 +16,8 @@ uniform sampler2D shadowTex;
 uniform sampler2D noiseTex;
 uniform sampler2D gDepth;
 
-uniform int samples = 4;
-uniform float noiseMult = 5.0;
+uniform int samples = 2;
+uniform float noiseMult = 0.0;
 
 float getShadowAtten(vec2 texCoord, float baseDepth, float depthBias)
 {
@@ -89,5 +89,6 @@ void main()
 	lightColour.x = min(lightColour.x + 0.1, 1.0);
 	
 	out_colour = vec4(lightColour, 1.0);
+	
 }
 

@@ -26,6 +26,7 @@ float getShadowAtten(vec2 texCoord, float baseDepth, float depthBias)
 	if (shadow.x < baseDepth - depthBias)
 	{
 		atten = min(abs(pow(shadow.x, 2.0) - shadow.y) * 10.0, 1.0);
+		//atten = 0.0;
 	}
 	return atten;
 }
@@ -41,7 +42,7 @@ void main()
 	float lightDist = length(lightDir);
 	lightDir /= lightDist;
 	vec3 lightColour = vec3(0.0, 0.0, 0.0);
-	float coneAtten = sqrt(max(dot(lightCone, lightDir), 0.0));
+	float coneAtten = sqrt(max(dot(lightCone, lightDir) - 0.25, 0.0));
 	vec2 noise[4];
 	vec3 lightWVPos = (lightWorldView * vec4(worldPos, 1.0)).xyz;
 	float nDotL = max(0.0, dot(lightDir, normalize(oNormal)));
