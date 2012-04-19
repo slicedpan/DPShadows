@@ -6,7 +6,7 @@
 #include <FPSCamera\FPSCamera.h>
 #include <FPSCamera\CameraController.h>
 #include "FrameBufferObject.h"
-#include "VBOMesh.h"
+#include "StaticMesh.h"
 #include <cstdlib>
 #include <math.h>
 #include "QuadDrawer.h"
@@ -24,6 +24,8 @@ bool shadowBlur = false;
 bool DOFEnabled = true;
 
 #define BUFFER_OFFSET(i) ((char*)NULL + i)
+
+#define VBOMesh StaticMesh
 
 void CreateVBOs();
 
@@ -182,8 +184,8 @@ void setup()
 	printf("Textures Loaded\n");
 
 	printf("Loading Meshes...\n");
-	mesh = new VBOMesh("Assets/Meshes/sponza.obj", false, true);	
-	mesh->Load();
+	mesh = new VBOMesh();
+	mesh->LoadObj("Assets/Meshes/sponza.obj", true, true, false);
 
 	glBindTexture(GL_TEXTURE_2D, noiseTexture->GetId());
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -281,7 +283,7 @@ void display()
 	Mat4 world = Mat4(vl_one);
 	basic->Uniforms("lightRadius").SetValue(lightRadius);
 
-	mesh->Draw();
+	mesh->SubMeshes[0]->Draw();
 
 	shadowMap->Unbind();
 
@@ -297,7 +299,7 @@ void display()
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	renderToGBuffer->Use();
 	renderToGBuffer->Uniforms("projViewWorld").SetValue(projViewWorld);
-	mesh->Draw();
+	mesh->SubMeshes[0]->Draw();
 	float pixels[4];
 	glReadPixels(width / 2 - 1, height / 2 - 1, 2, 2, GL_DEPTH_COMPONENT, GL_FLOAT, pixels);
 	gBuf->Unbind();
@@ -368,10 +370,7 @@ void display()
 	glLoadIdentity();
 	glMultMatrixf(camera->GetViewTransform().Ref());
 
-	if (debugDraw)
-		mesh->DrawImmediate();
-	else
-		mesh->Draw();
+	mesh->SubMeshes[0]->Draw();
 
 	mainScene->Unbind();
 
